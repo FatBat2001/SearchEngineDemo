@@ -1,16 +1,25 @@
-# This is a sample Python script.
+import os
+from nltk import PorterStemmer
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+ps = PorterStemmer()
+def read_file(file_name):
+    line = ""
+    with open(file_name, "r") as file:
+        line = file.readline()
+    return line
 
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+
+def read_files():
+    all_docs = {}
+    for i in range(1,11):
+        all_docs[f'doc-{i}'] = read_file(os.path.join("files",f"{i}.txt")).split(' ')
+    return all_docs
 
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
+def preprocess():
+    all_documents = read_files()
+    for doc_name, content in all_documents.items():
+        all_documents[doc_name] = list(map(lambda token: ps.stem(token), content))
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+preprocess()

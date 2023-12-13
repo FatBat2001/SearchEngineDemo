@@ -49,7 +49,6 @@ def init():
     return sorted_positional_index
 
 
-
 def compute_term_frequency(positional_index):
     term_frequency = {key: [0 for i in range(0, 10)] for key in positional_index}
     for term, posting_list in positional_index.items():
@@ -91,6 +90,7 @@ def compute_tf_idf_weight(df_table, tf_table):
     print(tf_table)
     return tf_idf_weight
 
+
 def get_posting_list(word):
     if word not in pos_index:
         print('key not present')
@@ -116,7 +116,9 @@ def intersect(list1, list2):
     return result
 
 
-def get_phrase_query(query):
+
+
+def and_association(query):
     preprocessed_query = preprocess(query)
     result = get_posting_list(preprocessed_query[0])
     for i in range(1, len(preprocessed_query)):
@@ -124,11 +126,78 @@ def get_phrase_query(query):
     return result
 
 
+def or_association(query):
+    pass
+
+
+def not_association(query):
+    pass
+
+
+def phrase_query_intersect(dict1, dict2):
+    p1 = 0
+    p2 = 0
+    result = {}
+    list1 = list(dict1.keys())
+    list2 = list(dict2.keys())
+    while p1 < len(list1) and p2 < len(list2):
+        if list1[p1] == list2[p2]:
+            doc_name = list1[p1]
+            prev_document_indexes = dict1[doc_name]
+            current_document_indexes = dict2[doc_name]
+            pp1 = 0
+            pp2 = 0
+            while pp1 < len(prev_document_indexes) and pp2 < len(current_document_indexes):
+                if prev_document_indexes[pp1] == current_document_indexes[pp2] - 1:
+                    if doc_name not in result:
+                        result[doc_name] = []
+                        result[doc_name].append(current_document_indexes[pp2])
+                    else:
+                        result[doc_name].append(current_document_indexes[pp2])
+                    pp1 += 1
+                    pp2 += 1
+                elif prev_document_indexes[pp1] < current_document_indexes[pp2]:
+                    pp1 += 1
+                else:
+                    pp2 += 1
+
+            p1 += 1
+            p2 += 1
+        elif list1[p1] < list2[p2]:
+            p1 += 1
+        else:
+            p2 += 1
+    return result
+
+
+def get_phrase_query(query):
+    preprocessed_query = preprocess(query)
+    result = get_posting_list(preprocessed_query[0])
+    prev_word = preprocessed_query[0]
+    curr_word = ""
+
+    if prev_word not in pos_index:
+        return {}
+    result = pos_index[prev_word]
+    for i in range(1, len(preprocessed_query)):
+        curr_word = preprocessed_query[i]
+        if curr_word not in pos_index:
+            print("key not found")
+            return {}
+        result = phrase_query_intersect(result, pos_index[curr_word])
+        #after ending the algorithm swap prev with curr
+        prev_word = curr_word
+    return result
+
+
+
 pos_index = init()
 # print(pos_index)
-input_query = "flies adham"
+input_query = "fools fear"
 res = get_phrase_query(input_query)
 print(res)
+# res = and_association(input_query)
+# print(res)
 # tf = compute_term_frequency(pos_index)
 # w_tf = compute_weighted_term_frequency(tf)
 # # print(tf2)

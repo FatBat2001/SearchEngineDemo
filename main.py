@@ -14,10 +14,10 @@ def read_file(file_name):
 
 
 def read_files():
-    all_docs = {}
+    all_documents = {}
     for i in range(1, 11):  # tokenization
-        all_docs[f'doc-{i}'] = list(filter(None, read_file(os.path.join("files", f"{i}.txt")).split(' ')))
-    return all_docs
+        all_documents[i] = list(filter(None, read_file(os.path.join("files", f"{i}.txt")).split(' ')))
+    return all_documents
 
 
 def preprocess(text):
@@ -53,7 +53,7 @@ def compute_term_frequency(positional_index):
     term_frequency = {key: [0 for i in range(0, 10)] for key in positional_index}
     for term, posting_list in positional_index.items():
         for doc in posting_list.keys():
-            term_frequency[term][int(doc.split('-')[1]) - 1] += len(posting_list[doc])
+            term_frequency[term][doc-1] += len(posting_list[doc])
     return term_frequency
 
 
@@ -117,21 +117,45 @@ def intersect(list1, list2):
 
 
 
+def custom_sort(item):
+    return len(item)
 
-def and_association(query):
-    preprocessed_query = preprocess(query)
-    result = get_posting_list(preprocessed_query[0])
-    for i in range(1, len(preprocessed_query)):
-        result = intersect(result, get_posting_list(preprocessed_query[i]))
+def and_association(lists):
+    result = []
+    x = sorted(lists, key=custom_sort)
+    if len(lists) > 0:
+        result = lists[0]
+    for i in range(1, len(lists)):
+        result = intersect(result, lists[i])
     return result
 
+def or_association(list1, list2):
+    result = set()
+    p1 = 0
+    p2 = 0
+    while p1 < len(list1) and p2 < len(list2):
+        if list1[p1] < list2[p2]:
+            result.add(list1[p1])
+            p1 += 1
+        else:
+            result.add(list2[p2])
+            p2 += 1
+    while p1 < len(list1):
+        result.add(list1[p1])
+        p1 += 1
+    while p2 < len(list2):
+        result.add(list2[p2])
+        p2 += 1
+    return sorted(list(result))
 
-def or_association(query):
-    pass
-
-
-def not_association(query):
-    pass
+def not_association(list):
+    result = []
+    for i in range(1, NO_OF_DOCUMENTS + 1):
+        if i in list:
+            continue
+        else:
+            result.append(i)
+    return result
 
 
 def phrase_query_intersect(dict1, dict2):
@@ -190,18 +214,90 @@ def get_phrase_query(query):
     return result
 
 
+def boolean_query(query): # tokenized and preprocessed query
+    query = preprocess(query)
+    stack = []
+    result = []
+    for i in range(0, len(query)):
+        if query[i] not in ['and', 'not', 'or']:
+            curr_post_list = get_posting_list(query[i])
+            if len(stack) > 0:
+                while len(stack) > 0:
+                    operation = stack[-1]
+                    stack.pop()
+                    if operation == 'and':
+                        result = and_association([result, curr_post_list])
+                    elif operation == 'or':
+                        result = or_association(result, curr_post_list)
+                    else:
+                        if len(stack) == 0:
+                            result = not_association(curr_post_list)
+                        else:
+                            temp = not_association(curr_post_list)
+                            second_operation = stack[-1]
+                            stack.pop()
+                            if second_operation == 'and':
+                                result = and_association([result, temp])
+                            else:
+                                result = or_association(result, temp)
+            else:
+                result = get_posting_list(query[i])
+        else:
+            stack.append(query[i])
+    return result
 
+
+all_docs = read_files()
 pos_index = init()
+print('Welcome :)')
+while True:
+    print("\npress 1 for phrase query 2 for boolean query")
+    choice = input()
+    if choice == '1':
+        q = input('enter your phrase query\n')
+        res = get_phrase_query(q)
+        print(res)
+    elif choice == '2':
+        q = input('enter your boolean query\n')
+        res = boolean_query(q)
+        print(res)
+    else:
+        break
+
+# input_query = "not yousra"
+# res = boolean_query(input_query)
+# print(res)
+
+
+# q = preprocess('flies')
+# q2 = preprocess('brutus')
+# q3 = preprocess('worser')
+#
+# q4 = preprocess('caeser')
+# post = get_posting_list(q[0])
+# post2 = get_posting_list(q2[0])
+# post3 = get_posting_list(q3[0])
+# post4 = get_posting_list(q4[0])
+# l = []
+# l.append(post3)
+# l.append(post)
+# l.append(post2)
+#
+# res = and_association(l)
+#
+# print(res)
+
 # print(pos_index)
-input_query = "fools fear"
-res = get_phrase_query(input_query)
-print(res)
+# input_query = "mercy worser"
+# res = get_phrase_query(input_query)
+# print(res)
+
 # res = and_association(input_query)
 # print(res)
 # tf = compute_term_frequency(pos_index)
 # w_tf = compute_weighted_term_frequency(tf)
-# # print(tf2)
+# print(w_tf)
 # idf = compute_idf_weight(pos_index)
-# # print(doc_freq)
+# print(idf)
 # tf_idf_w = compute_tf_idf_weight(idf, w_tf)
-
+# print(tf_idf_w)

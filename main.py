@@ -16,7 +16,8 @@ def read_file(file_name):
 def read_files():
     all_documents = {}
     for i in range(1, 11):  # tokenization
-        all_documents[i] = list(filter(None, read_file(os.path.join("files", f"{i}.txt")).split(' ')))
+        tokenized = list(filter(None, read_file(os.path.join("files", f"{i}.txt")).split(' ')))
+        all_documents[i] = list(map(lambda token: ps.stem(token), tokenized))
     return all_documents
 
 
@@ -29,8 +30,7 @@ def preprocess(text):
 def init():
     all_documents = read_files()
     positional_index = {}
-    for doc_name, content in all_documents.items():
-        all_documents[doc_name] = list(map(lambda token: ps.stem(token), content))
+
     for document_name, words in all_documents.items():
         for index, word in enumerate(words):
             if word in positional_index:
@@ -72,6 +72,8 @@ def compute_weighted_term_frequency(term_freq_table):
 
 
 def calc_inverse_document_frequency(doc_freq):
+    if doc_freq == 0:
+        return 0
     return math.log10(NO_OF_DOCUMENTS / doc_freq)
 
 
@@ -87,7 +89,6 @@ def compute_tf_idf_weight(df_table, tf_table):
     tf_idf_weight = {}
     for key in df_table:
         tf_idf_weight[key] = list(map(lambda x: x * df_table[key][1], tf_table[key]))
-    print(tf_table)
     return tf_idf_weight
 
 
@@ -214,7 +215,7 @@ def get_phrase_query(query):
     return result
 
 
-def boolean_query(query): # tokenized and preprocessed query
+def boolean_query(query):
     query = preprocess(query)
     stack = []
     result = []
@@ -247,20 +248,97 @@ def boolean_query(query): # tokenized and preprocessed query
     return result
 
 
+def compute_tf_w(dictionary):
+    res = {}
+    for key in dictionary:
+        x = dictionary[key]
+        res[key] = weight_term_mapping(x)
+    return res
+def compute_cosine_similarity(query, document):
+    query = preprocess(query)
+    terms = []
+    for term in query:
+        if term not in terms:
+            terms.append(term)
+    for term in document:
+        if term not in terms:
+            terms.append(term)
+    q_tf_raw = {}
+    d_tf_raw = {}
+    for term in terms:
+        q_tf_raw[term] = 0
+        d_tf_raw[term] = 0
+    for term in query:
+        q_tf_raw[term] += 1
+    for term in document:
+        d_tf_raw[term] += 1
+    q_tf_w = compute_tf_w(q_tf_raw)
+    d_tf_w = compute_tf_w(d_tf_raw)
+    _idf = {}
+    for term in terms:
+        if term in idf:
+            _idf[term] = idf[term][1]
+        else:
+            _idf[term] = 0
+    q_tf_idf = {}
+    d_tf_idf = {}
+    for term in terms:
+        q_tf_idf[term] = _idf[term] * q_tf_w[term]
+        d_tf_idf[term] = _idf[term] * d_tf_w[term]
+    q_length = 0
+    d_length = 0
+    for term in terms:
+        q_length += q_tf_idf[term] * q_tf_idf[term]
+        d_length += d_tf_idf[term] * d_tf_idf[term]
+    q_length = math.sqrt(q_length)
+    d_length = math.sqrt(d_length)
+    norm_q_tf_idf = {}
+    norm_d_tf_idf = {}
+    prod = {}
+    for term in terms:
+        norm_q_tf_idf[term] = q_tf_idf[term] / q_length
+        norm_d_tf_idf[term] = d_tf_idf[term] / d_length
+        prod[term] = norm_q_tf_idf[term] * norm_d_tf_idf[term]
+    result = 0
+    for term in terms:
+        result += prod[term]
+    return result
+
+
 all_docs = read_files()
 pos_index = init()
-print('Welcome :)')
+print('Welcome :)\n\n\n')
+tf = compute_term_frequency(pos_index)
+w_tf = compute_weighted_term_frequency(tf)
+print(f'w_tf: {w_tf}')
+idf = compute_idf_weight(pos_index)
+print(f'idf: {idf}')
+tf_idf_w = compute_tf_idf_weight(idf, w_tf)
+print(f'tf_idf: {tf_idf_w}')
+
+
 while True:
     print("\npress 1 for phrase query 2 for boolean query")
     choice = input()
     if choice == '1':
         q = input('enter your phrase query\n')
         res = get_phrase_query(q)
-        print(res)
+        similarities = {}
+        for doc_id in res:
+            similarities[doc_id] = compute_cosine_similarity(q, all_docs[doc_id])
+
+        similarities = dict(sorted(similarities.items(), key=lambda x: -x[1]))
+        print(similarities)
     elif choice == '2':
         q = input('enter your boolean query\n')
         res = boolean_query(q)
-        print(res)
+        similarities = {}
+        for doc_id in res:
+            similarities[doc_id] = compute_cosine_similarity(q, all_docs[doc_id])
+
+        similarities = dict(sorted(similarities.items(), key=lambda x: -x[1]))
+        print(similarities)
+
     else:
         break
 
@@ -294,10 +372,4 @@ while True:
 
 # res = and_association(input_query)
 # print(res)
-# tf = compute_term_frequency(pos_index)
-# w_tf = compute_weighted_term_frequency(tf)
-# print(w_tf)
-# idf = compute_idf_weight(pos_index)
-# print(idf)
-# tf_idf_w = compute_tf_idf_weight(idf, w_tf)
-# print(tf_idf_w)
+

@@ -79,6 +79,7 @@ def calc_inverse_document_frequency(doc_freq):
 
 def compute_idf_weight(positional_index):
     document_frequency = {key: [0, 0] for key in positional_index}
+    _df = document_frequency
     for key in positional_index.keys():
         document_frequency[key][0] = len(positional_index[key])
         document_frequency[key][1] = calc_inverse_document_frequency(document_frequency[key][0])
@@ -219,18 +220,30 @@ def boolean_query(query):
     query = preprocess(query)
     stack = []
     result = []
-    for i in range(0, len(query)):
-        if query[i] not in ['and', 'not', 'or']:
-            curr_post_list = get_posting_list(query[i])
-            if len(stack) > 0:
+    s = ""
+    curr_post_list = []
+    iterator = 0
+    while iterator < len(query):
+        while iterator < len(query) and query[iterator] not in ['or', 'not', 'and']:
+            s += query[iterator] + " "
+            iterator += 1
+        if len(s) > 0:
+            if result == []:
+                if (len(s) > 0):
+                    x = get_phrase_query(s)
+                    result = list(x.keys())
+            else:
                 while len(stack) > 0:
                     operation = stack[-1]
                     stack.pop()
+                    if (len(s) > 0):
+                        x = get_phrase_query(s)
+                        curr_post_list = list(x.keys())
                     if operation == 'and':
                         result = and_association([result, curr_post_list])
-                    elif operation == 'or':
+                    if operation == 'or':
                         result = or_association(result, curr_post_list)
-                    else:
+                    if operation == 'not':
                         if len(stack) == 0:
                             result = not_association(curr_post_list)
                         else:
@@ -241,10 +254,18 @@ def boolean_query(query):
                                 result = and_association([result, temp])
                             else:
                                 result = or_association(result, temp)
-            else:
-                result = get_posting_list(query[i])
+
+        if iterator < len(query):
+            stack.append(query[iterator])
+            iterator += 1
+        s = ""
+    while len(stack):
+        operation = stack[-1]
+        stack.pop()
+        if operation == 'not':
+            result = not_association(result)
         else:
-            stack.append(query[i])
+            break
     return result
 
 
@@ -254,6 +275,8 @@ def compute_tf_w(dictionary):
         x = dictionary[key]
         res[key] = weight_term_mapping(x)
     return res
+
+
 def compute_cosine_similarity(query, document):
     query = preprocess(query)
     terms = []
@@ -296,7 +319,10 @@ def compute_cosine_similarity(query, document):
     norm_d_tf_idf = {}
     prod = {}
     for term in terms:
-        norm_q_tf_idf[term] = q_tf_idf[term] / q_length
+        if q_length > 0:
+            norm_q_tf_idf[term] = q_tf_idf[term] / q_length
+        else:
+            norm_q_tf_idf[term] = 0
         norm_d_tf_idf[term] = d_tf_idf[term] / d_length
         prod[term] = norm_q_tf_idf[term] * norm_d_tf_idf[term]
     result = 0
@@ -305,17 +331,33 @@ def compute_cosine_similarity(query, document):
     return result
 
 
+def format_dictionary(dictionary):
+    res_str = ""
+    for key, value_list in dictionary.items():
+        res_str += f'{key}\t'
+        for element in value_list:
+            res_str += f'{element}\t'
+        res_str += '\n'
+    res_str += '\n'
+    return res_str
+
+
 all_docs = read_files()
 pos_index = init()
 print('Welcome :)\n\n\n')
 tf = compute_term_frequency(pos_index)
+print(f'\t\t\t\ttf\n')
+print(format_dictionary(tf))
 w_tf = compute_weighted_term_frequency(tf)
-print(f'w_tf: {w_tf}')
+print(f'\t\t\t\tw_tf:\n')
+print(format_dictionary(w_tf))
 idf = compute_idf_weight(pos_index)
-print(f'idf: {idf}')
+formatted_idf = format_dictionary(idf)
+print("\t\t\t\tidf\n")
+print(formatted_idf)
 tf_idf_w = compute_tf_idf_weight(idf, w_tf)
-print(f'tf_idf: {tf_idf_w}')
-
+print(f'\t\t\t\ttf_idf\n')
+print(format_dictionary(tf_idf_w))
 
 while True:
     print("\npress 1 for phrase query 2 for boolean query")
@@ -326,7 +368,7 @@ while True:
         similarities = {}
         for doc_id in res:
             similarities[doc_id] = compute_cosine_similarity(q, all_docs[doc_id])
-
+        print(f'resssa {res}')
         similarities = dict(sorted(similarities.items(), key=lambda x: -x[1]))
         print(similarities)
     elif choice == '2':
@@ -342,34 +384,4 @@ while True:
     else:
         break
 
-# input_query = "not yousra"
-# res = boolean_query(input_query)
-# print(res)
-
-
-# q = preprocess('flies')
-# q2 = preprocess('brutus')
-# q3 = preprocess('worser')
-#
-# q4 = preprocess('caeser')
-# post = get_posting_list(q[0])
-# post2 = get_posting_list(q2[0])
-# post3 = get_posting_list(q3[0])
-# post4 = get_posting_list(q4[0])
-# l = []
-# l.append(post3)
-# l.append(post)
-# l.append(post2)
-#
-# res = and_association(l)
-#
-# print(res)
-
-# print(pos_index)
-# input_query = "mercy worser"
-# res = get_phrase_query(input_query)
-# print(res)
-
-# res = and_association(input_query)
-# print(res)
 

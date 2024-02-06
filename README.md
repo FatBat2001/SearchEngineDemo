@@ -10,9 +10,7 @@ Welcome to the Positional Index and Vector Space Model Project! This project imp
 - [Features](#features)
 - [Installation](#installation)
 - [Usage](#usage)
-- [Examples](#examples)
-- [Contributing](#contributing)
-- [License](#license)
+
 
 ## Introduction
 
@@ -48,3 +46,7 @@ This project addresses key aspects of information retrieval:
   ```bash
   pip install -r requirments.txt
 ```
+1-Indexing: Create a positional index from documents.
+2-Boolean Queries: Execute boolean queries to filter documents.
+3-Phrase Queries: Search for documents containing specific phrases.
+4-Vector Space Model Ranking: Rank documents based on relevance scores.
